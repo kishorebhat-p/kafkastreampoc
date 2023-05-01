@@ -2,23 +2,24 @@ package com.bofa.kafkastreampoc;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.*;
 
 import com.bofa.kafkastreampoc.doa.PaymentDetails;
 import com.bofa.kafkastreampoc.doa.PaymentFullDetails;
 import com.bofa.kafkastreampoc.doa.PaymentTransaaction;
 import com.bofa.kafkastreampoc.serde.CustomSerdes;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.kafka.streams.state.KeyValueStore;
 
 public class KTableJoinExample {
 
@@ -31,6 +32,8 @@ public class KTableJoinExample {
 	static final String AGGREGATED_STORE = "aggreatedStore";
 
 	static final int DEFAULT_PORT = 9092;
+	private static Object KeyValueStore;   // TODO might remove
+	private static Object Materialized;		// TODO might remove
 
 	public static void main(final String[] args) throws Exception {
 
@@ -78,12 +81,26 @@ public class KTableJoinExample {
 				Consumed.with(stringSerde, CustomSerdes.DetailsSerde()));
 		final PaymentDetailsJoiner trackJoiner = new PaymentDetailsJoiner();
 
-		final KTable<String, PaymentFullDetails> fullPaymentDetails = transactions.outerJoin(
-				paymentDetails,
-				trackJoiner
+		// TODO: just crudely converting to KStream for now. If this approach works just replace above Tables with Streams.
+		final KStream<String, PaymentTransaaction> transaactionStream = transactions.toStream();
+		final KStream<String, PaymentDetails> paymentDetailsStream = paymentDetails.toStream();
+
+//		final KTable<String, PaymentFullDetails> fullPaymentDetails = transactions.join(
+//				paymentDetails,
+//				trackJoiner
+//		);
+
+		final KStream<String, PaymentFullDetails> fullPaymentDetails = transaactionStream.join(
+				paymentDetailsStream,
+				trackJoiner,
+//				JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5))
+				JoinWindows.of(Duration.ofMinutes(5))
 		);
 
-		fullPaymentDetails.toStream().filter((k, v) -> v != null).to(TO_TOPIC,
+//		fullPaymentDetails.toStream().filter((k, v) -> v != null).to(TO_TOPIC,
+//				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
+
+		fullPaymentDetails.filter((k, v) -> v != null).to(TO_TOPIC,
 				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
 
 		return new KafkaStreams(builder.build(), streamsConfiguration);
