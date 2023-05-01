@@ -25,7 +25,7 @@ public class KTableJoinExample {
 
 	static final String PARENT_TOPIC = "TestParentTopic";
 	static final String CHILD_TOPIC = "TestChildTopic";
-	static final String DEFAULT_HOST = "vmpaykafkaub01";
+	static final String DEFAULT_HOST = "localhost";
 
 	static final String TO_TOPIC = "TestAggregatedTopic";
 
