@@ -78,8 +78,10 @@ public class KTableJoinExample {
 				Consumed.with(stringSerde, CustomSerdes.DetailsSerde()));
 		final PaymentDetailsJoiner trackJoiner = new PaymentDetailsJoiner();
 
-		final KTable<String, PaymentFullDetails> fullPaymentDetails = transactions.leftJoin(paymentDetails,
-				trackJoiner);
+		final KTable<String, PaymentFullDetails> fullPaymentDetails = transactions.outerJoin(
+				paymentDetails,
+				trackJoiner
+		);
 
 		fullPaymentDetails.toStream().filter((k, v) -> v != null).to(TO_TOPIC,
 				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
