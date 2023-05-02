@@ -90,12 +90,27 @@ public class KTableJoinExample {
 //				trackJoiner
 //		);
 
-		final KStream<String, PaymentFullDetails> fullPaymentDetails = transaactionStream.join(
+//		final KStream<String, PaymentFullDetails> fullPaymentDetails = transaactionStream.join(
+//				paymentDetailsStream,
+//				trackJoiner,
+////				JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5))
+//				JoinWindows.of(Duration.ofMinutes(5)),
+//				Joined.with(stringSerde, CustomSerdes.TransactionSerde(), CustomSerdes.DetailsSerde())
+////				Joined.with(stringSerde, CustomSerdes.TransactionSerde(), CustomSerdes.DetailsSerde())
+////						.withName("transaction-paymentDetails-join")
+////						.withWindowSizeMs(TimeUnit.MINUTES.toMillis(5))
+//		);
+
+		final KStream<String, PaymentFullDetails> fullPaymentDetails = transaactionStream.outerJoin(
 				paymentDetailsStream,
 				trackJoiner,
-//				JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5))
-				JoinWindows.of(Duration.ofMinutes(5))
+				JoinWindows.ofTimeDifferenceAndGrace(Duration.ofMinutes(2), Duration.ofMinutes(1)),
+				StreamJoined.with(Serdes.String(), /* key */
+						CustomSerdes.TransactionSerde(), /* left value */
+						CustomSerdes.DetailsSerde()) /* right value */
 		);
+
+
 
 //		fullPaymentDetails.toStream().filter((k, v) -> v != null).to(TO_TOPIC,
 //				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
