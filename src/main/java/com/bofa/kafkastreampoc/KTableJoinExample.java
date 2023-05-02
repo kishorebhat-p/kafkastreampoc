@@ -2,19 +2,23 @@ package com.bofa.kafkastreampoc;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.state.KeyValueStore;
 
 import com.bofa.kafkastreampoc.doa.PaymentDetails;
 import com.bofa.kafkastreampoc.doa.PaymentFullDetails;
@@ -87,8 +91,12 @@ public class KTableJoinExample {
 				Consumed.with(stringSerde, CustomSerdes.DetailsSerde()));
 		final PaymentDetailsJoiner trackJoiner = new PaymentDetailsJoiner();
 
+		
+		Materialized.as("MaterializedDataForStream").withRetention(Duration.ofMinutes(3));
+		Materialized<String, PaymentFullDetails, KeyValueStore<Bytes, byte[]>> with = Materialized.with(stringSerde,
+				CustomSerdes.FullPaymentSerde());
 		final KTable<String, PaymentFullDetails> fullPaymentDetails = transactions.outerJoin(paymentDetails,
-				trackJoiner);
+				trackJoiner,with);
 
 		final KStream<String, PaymentFullDetails> fullPaymentStream = fullPaymentDetails.toStream();
 
