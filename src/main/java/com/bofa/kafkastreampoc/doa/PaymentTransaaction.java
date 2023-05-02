@@ -2,6 +2,12 @@ package com.bofa.kafkastreampoc.doa;
 
 public class PaymentTransaaction {
 
+	@Override
+	public String toString() {
+		return "PaymentTransaaction [paymentID=" + paymentID + ", paymenttimeinMS=" + paymenttimeinMS + ", fromID="
+				+ fromID + ", toID=" + toID + "]";
+	}
+
 	private String paymentID;
 	
 	public String getPaymentID() {
