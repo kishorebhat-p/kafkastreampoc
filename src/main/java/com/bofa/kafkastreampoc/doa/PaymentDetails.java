@@ -22,4 +22,10 @@ public class PaymentDetails {
 
 	private String cardID;
 
+	@Override
+	public String toString() {
+		return "PaymentDetails [paymentID=" + paymentID + ", cardID=" + cardID + "]";
+	}
+	
+
 }

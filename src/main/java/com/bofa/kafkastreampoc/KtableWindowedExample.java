@@ -2,6 +2,7 @@ package com.bofa.kafkastreampoc;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -12,23 +13,26 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.streams.kstream.Joined;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.StreamJoined;
+import org.apache.kafka.streams.kstream.TimeWindows;
 
 import com.bofa.kafkastreampoc.doa.PaymentDetails;
 import com.bofa.kafkastreampoc.doa.PaymentFullDetails;
 import com.bofa.kafkastreampoc.doa.PaymentTransaaction;
 import com.bofa.kafkastreampoc.serde.CustomSerdes;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class KTableJoinExample {
+public class KtableWindowedExample {
 
-	static final String PARENT_TOPIC = "TestParentTopic";
-	static final String CHILD_TOPIC = "TestChildTopic";
+	static final String PARENT_TOPIC = "TestWindowParentTopic";
+	static final String CHILD_TOPIC = "TestWindowChildTopic";
 	static final String DEFAULT_HOST = "vmpaykafkaub01";
 
-	static final String TO_TOPIC = "TestAggregatedTopic_2";
+	static final String TO_TOPIC = "TestAggregatedTopic_3";
 
 	static final String ORPHAN_TOPIC = "TestOrphanTopic";
 
@@ -79,32 +83,31 @@ public class KTableJoinExample {
 	static KafkaStreams createStreams(final Properties streamsConfiguration, ScheduledThreadPoolExecutor threadPool) {
 		final Serde<String> stringSerde = Serdes.String();
 		final StreamsBuilder builder = new StreamsBuilder();
-		final long timeoutInternval = 120000;
 
-		final KTable<String, PaymentTransaaction> transactions = builder.table(PARENT_TOPIC,
+		final KStream<String, PaymentTransaaction> transactions = builder.stream(PARENT_TOPIC,
 				Consumed.with(stringSerde, CustomSerdes.TransactionSerde()));
-		final KTable<String, PaymentDetails> paymentDetails = builder.table(CHILD_TOPIC,
+		final KStream<String, PaymentDetails> paymentDetails = builder.stream(CHILD_TOPIC,
 				Consumed.with(stringSerde, CustomSerdes.DetailsSerde()));
 		final PaymentDetailsJoiner trackJoiner = new PaymentDetailsJoiner();
 
-		final KTable<String, PaymentFullDetails> fullPaymentDetails = transactions.outerJoin(paymentDetails,
-				trackJoiner);
-
-		final KStream<String, PaymentFullDetails> fullPaymentStream = fullPaymentDetails.toStream();
+		final KStream<String, PaymentFullDetails> fullPaymentDetails = transactions.outerJoin(paymentDetails,
+				trackJoiner, JoinWindows.ofTimeDifferenceAndGrace(Duration.ofMinutes(2), Duration.ofMinutes(1)),
+				StreamJoined.with(Serdes.String(), /* key */
+						CustomSerdes.TransactionSerde(), /* left value */
+						CustomSerdes.DetailsSerde()) /* right value */
+		);
 
 		// Write to final Topic if Parent and child is present
-		fullPaymentStream.filter((k, v) -> (v.isChildPresent() && v.isParentPresent())).to(TO_TOPIC,
+		fullPaymentDetails.filter((k, v) -> (v.isChildPresent() && v.isParentPresent())).to(TO_TOPIC,
 				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
 
 		// Write to Orphan Topic if Parent is not present
-		fullPaymentStream.filter(
-				(k, v) -> (v.isChildPresent() && !v.isParentPresent() && v.hasMessageTimeElapsed(timeoutInternval)))
-				.to(ORPHAN_TOPIC, Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
+		fullPaymentDetails.filter((k, v) -> (v.isChildPresent() && !v.isParentPresent())).to(ORPHAN_TOPIC,
+				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
 
 		// Write to Parent without child
-		fullPaymentStream.filter(
-				(k, v) -> (!v.isChildPresent() && v.isParentPresent() && v.hasMessageTimeElapsed(timeoutInternval)))
-				.to(NULLIPARA_TOPIC, Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
+		fullPaymentDetails.filter((k, v) -> (!v.isChildPresent() && v.isParentPresent())).to(NULLIPARA_TOPIC,
+				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
 
 		return new KafkaStreams(builder.build(), streamsConfiguration);
 

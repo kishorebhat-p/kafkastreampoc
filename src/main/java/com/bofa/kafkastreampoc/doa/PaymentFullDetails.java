@@ -12,6 +12,12 @@ public class PaymentFullDetails {
 
 	private String toID;
 
+	private long creationTime;
+
+	private boolean isParentPresent = false;
+
+	private boolean isChildPresent = false;
+
 	public String getPaymentID() {
 		return paymentID;
 	}
@@ -30,6 +36,20 @@ public class PaymentFullDetails {
 
 	public long getPaymenttimeinMS() {
 		return paymenttimeinMS;
+	}
+
+	public boolean hasMessageTimeElapsed(long timeoutInternval) {
+
+		long timeforFailure = System.currentTimeMillis() - timeoutInternval;
+		long lowerrange = System.currentTimeMillis() - (2 * timeoutInternval);
+		System.out.println("In hasMessageTimeElapsed for ID    " + paymentID + "..." + creationTime + "...."
+				+ timeforFailure + "...." + lowerrange);
+		if (creationTime < timeforFailure && creationTime > lowerrange) {
+			return true;
+		} else {
+			return false;
+		}
+
 	}
 
 	public void setPaymenttimeinMS(long paymenttimeinMS) {
@@ -51,6 +71,36 @@ public class PaymentFullDetails {
 	public void setToID(String toID) {
 		this.toID = toID;
 	}
-	
-	
+
+	public long getCreationTime() {
+		return creationTime;
+	}
+
+	public void setCreationTime(long creationTime) {
+		this.creationTime = creationTime;
+	}
+
+	public boolean isParentPresent() {
+		return isParentPresent;
+	}
+
+	public void setParentPresent(boolean isParentPresent) {
+		this.isParentPresent = isParentPresent;
+	}
+
+	public boolean isChildPresent() {
+		return isChildPresent;
+	}
+
+	public void setChildPresent(boolean isChildPresent) {
+		this.isChildPresent = isChildPresent;
+	}
+
+	@Override
+	public String toString() {
+		return "PaymentFullDetails [paymentID=" + paymentID + ", cardID=" + cardID + ", paymenttimeinMS="
+				+ paymenttimeinMS + ", fromID=" + fromID + ", toID=" + toID + ", creationTime=" + creationTime
+				+ ", isParentPresent=" + isParentPresent + ", isChildPresent=" + isChildPresent + "]";
+	}
+
 }
