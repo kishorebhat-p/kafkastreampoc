@@ -81,6 +81,7 @@ public class KTableJoinExample {
 				Consumed.with(stringSerde, CustomSerdes.DetailsSerde()));
 		final PaymentDetailsJoiner trackJoiner = new PaymentDetailsJoiner();
 
+
 		// TODO: just crudely converting to KStream for now. If this approach works just replace above Tables with Streams.
 		final KStream<String, PaymentTransaaction> transaactionStream = transactions.toStream();
 		final KStream<String, PaymentDetails> paymentDetailsStream = paymentDetails.toStream();
@@ -101,6 +102,7 @@ public class KTableJoinExample {
 ////						.withWindowSizeMs(TimeUnit.MINUTES.toMillis(5))
 //		);
 
+		// TODO this is Kishore's outerJoin
 		final KStream<String, PaymentFullDetails> fullPaymentDetails = transaactionStream.outerJoin(
 				paymentDetailsStream,
 				trackJoiner,
@@ -109,11 +111,6 @@ public class KTableJoinExample {
 						CustomSerdes.TransactionSerde(), /* left value */
 						CustomSerdes.DetailsSerde()) /* right value */
 		);
-
-
-
-//		fullPaymentDetails.toStream().filter((k, v) -> v != null).to(TO_TOPIC,
-//				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
 
 		fullPaymentDetails.filter((k, v) -> v != null).to(TO_TOPIC,
 				Produced.with(stringSerde, CustomSerdes.FullPaymentSerde()));
